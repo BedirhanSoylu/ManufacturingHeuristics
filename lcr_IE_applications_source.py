@@ -6,7 +6,7 @@ Created on Mon Nov 13 18:07:11 2023
 """
 import numpy as np
 import pandas as pd
-import sys
+
 
 TOTAL_WORK_TIME = 360
 PRODUCTION_TARGET = 400
@@ -42,12 +42,12 @@ def fitPrecedence(dictionary, element, assigned):
     return fit_precedence
 
 
-def initializeIteration(database, assigned, totalTime):
+def initializeIteration(database, assigned, totalTime,TaktTime):
     suitable = True
     addable = False
     station = ''
     for el in database:
-        if (el not in assigned) and fitPrecedence(database, el, assigned) and database[el][0] <= TAKT_TIME - totalTime and suitable:
+        if (el not in assigned) and fitPrecedence(database, el, assigned) and database[el][0] <= TaktTime - totalTime and suitable:
             station = el
             suitable = False
             addable = True
@@ -55,21 +55,20 @@ def initializeIteration(database, assigned, totalTime):
     return (addable, station)
 
 
-def largestCandidateRule(database, TAKT_TIME):
-    database = dict(
-        sorted(database.items(), key=lambda item: item[1][0], reverse=True))
+def largestCandidateRule(database, TaktTime):
+    database = dict(sorted(database.items(), key=lambda item: item[1][0], reverse=True))
     workstations = []
     assigned = ['-']
     finished = False
     while not finished:
         tot_time = 0
         workstations.append([])
-        appending = initializeIteration(database, assigned, tot_time)
+        appending = initializeIteration(database, assigned, tot_time,TaktTime)
         while appending[0] == True:
             workstations[-1].append(appending[1])
             assigned.append(appending[1])
             tot_time += database[appending[1]][0]
-            appending = initializeIteration(database, assigned, tot_time)
+            appending = initializeIteration(database, assigned, tot_time,TaktTime)
         if len(assigned) == len(database) + 1:
             finished = True
 
@@ -106,7 +105,7 @@ def efficieny(cycleTime, database, workstations):
     return efficiency
 
 # Ranked Weighted Position Method
-# ²
+
 
 
 def fitAnyPrecedence(event, assigned, database):
@@ -251,4 +250,60 @@ def materailHeuristic(W_i_j, h_i_j, K_i, capUsage = [0,0,0,0], optCost = 0):
         materailHeuristic(W_i_j, h_i_j, K_i, capUsage, optCost)
         
     
+#Group Technology
+###################################
+def rowSumCalculator(dataframe):
+    totalIndex = np.zeros(dataframe.shape[0])
+    for row in range(dataframe.shape[0]):
+        tot = 0
+        power = dataframe.shape[1] - 1
+        for col in dataframe.iloc[row]:
+            tot += col * (2**power)
+            power -= 1
+        totalIndex[row] = tot
+        
+    return totalIndex
 
+def columnSumCalculator(dataframe):
+    totalIndex = np.zeros(dataframe.shape[1])
+    for col in range(dataframe.shape[1]):
+        tot = 0
+        power = dataframe.shape[0] - 1
+        for row in dataframe[dataframe.columns[col]]:
+            tot += row * (2**power)
+            power -= 1
+            
+        totalIndex[col] = tot
+          
+    return totalIndex
+
+def ROC(excelFile):
+    M_P_dataframe = pd.read_excel('machine-part-matrix.xlsx',index_col = 0)
+    M_P_dataframe.fillna(0,inplace=True)
+    M_P_dataframe.shape
+    rowSorted = False
+    colSorted = False
+    
+    while not rowSorted or not colSorted:
+        if not rowSorted:
+            M_P_dataframe['Total'] = rowSumCalculator(M_P_dataframe)
+            opt_df = M_P_dataframe.sort_values(by = ['Total'], ascending = False)
+            
+            if opt_df.equals(M_P_dataframe):
+                rowSorted = True
+            
+            M_P_dataframe = opt_df
+            M_P_dataframe.drop('Total', axis = 1, inplace = True)
+            
+        if not colSorted:
+            M_P_dataframe.loc['Sum'] = columnSumCalculator(M_P_dataframe)
+            opt_df = M_P_dataframe.sort_values(by = 'Sum', axis = 1,ascending = False)
+            
+            if opt_df.equals(M_P_dataframe):
+                colSorted = True
+                
+            M_P_dataframe = opt_df
+            M_P_dataframe.drop('Sum', axis = 0, inplace = True)
+            
+            
+    return M_P_dataframe
