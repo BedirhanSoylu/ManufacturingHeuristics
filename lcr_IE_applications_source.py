@@ -278,7 +278,7 @@ def columnSumCalculator(dataframe):
     return totalIndex
 
 def ROC(excelFile):
-    M_P_dataframe = pd.read_excel('machine-part-matrix.xlsx',index_col = 0)
+    M_P_dataframe = pd.read_excel(excelFile,index_col = 0)
     M_P_dataframe.fillna(0,inplace=True)
     M_P_dataframe.shape
     rowSorted = False
@@ -307,3 +307,58 @@ def ROC(excelFile):
             
             
     return M_P_dataframe
+
+
+#Hollier Method
+
+def hollier(excelFile):
+    #Sequencing phase
+    #df = pd.DataFrame({0 : [0,30,10,10], 1 : [5,0,40,0],
+    #             2 : [0,0,0,0], 3 :[25,15,0,0]})
+    
+    df = pd.read_excel(excelFile,index_col = 0)
+    original = df.copy()
+    sequence = np.array(range(df.shape[0]), dtype = 'str')
+    
+    totMove = df.sum(axis = None)
+    totMove = totMove.sum()
+    
+    fromSum = df.sum(axis = 1)
+    toSum = df.sum(axis = 0)
+    
+    startStep = 0
+    endStep = len(sequence) -1
+    
+    while startStep != endStep:
+        if fromSum.min() <= toSum.min():
+            sequence[endStep] = fromSum.idxmin()
+            df.drop(fromSum.idxmin(), axis = 0, inplace = True,)
+            df.drop(fromSum.idxmin(), axis = 1, inplace = True)
+            
+            endStep -= 1
+            
+        else:
+            sequence[startStep] = toSum.idxmin()
+            df.drop(toSum.idxmin(), axis = 1, inplace = True)
+            df.drop(toSum.idxmin(), axis = 0, inplace = True)
+
+            startStep += 1
+        
+        fromSum = df.sum(axis = 1)
+        toSum = df.sum(axis = 0)
+        
+    sequence[startStep] = fromSum.idxmin()
+    
+    #Efficiency Calculating Phase
+   
+    inSeqMove = 0
+    
+    for pair in range(len(sequence) - 1):
+        inSeqMove += original.iloc[int(sequence[pair]),int(sequence[pair + 1])]
+        
+    efficcieny = (inSeqMove / totMove) *100
+    
+    return f'{sequence} efficiency: {efficcieny:.2f}%'
+
+
+    
